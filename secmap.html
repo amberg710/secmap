@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>SECMAP · Dublin Security Intelligence</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300&family=Clash+Display:wght@500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Bebas+Neue&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+/* ── Reset & Root ─────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #06080D;
+  --surface:  #0B0F18;
+  --surface2: #10151F;
+  --surface3: #151C29;
+  --border:   #1A2235;
+  --border2:  #243048;
+
+  --text:     #E2EAF4;
+  --text2:    #8DA0B8;
+  --text3:    #4A607A;
+
+  --coral:    #FF5C3A;
+  --coral2:   #FF8266;
+  --cyan:     #00D4FF;
+  --cyan2:    #67E8FF;
+  --gold:     #F4A623;
+  --gold2:    #FFCC70;
+
+  --risk-critical: #FF2D55;
+  --risk-high:     #FF9500;
+  --risk-moderate: #34C759;
+  --risk-low:      #007AFF;
+
+  --hume-col:  #00D4FF;
+  --styne-col: #FF5C3A;
+
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-ui:      'Instrument Sans', sans-serif;
+  --font-mono:    'JetBrains Mono', monospace;
+
+  --radius:   10px;
+  --radius-lg:16px;
+  --shadow:   0 4px 24px rgba(0,0,0,0.6);
+  --shadow-lg:0 8px 48px rgba(0,0,0,0.8);
+  --glow-cyan: 0 0 20px rgba(0,212,255,0.25);
+  --glow-coral:0 0 20px rgba(255,92,58,0.25);
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+/* ── Layout ───────────────────────────────────── */
+.app { display: flex; flex-direction: column; height: 100vh; }
+
+/* ── Header ───────────────────────────────────── */
+.header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1000;
+}
+
+.header::before {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan), var(--coral), transparent);
+  opacity: 0.5;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-icon {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, var(--cyan), var(--coral));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 16px;
+  color: var(--bg);
+  letter-spacing: 0;
+  flex-shrink: 0;
+}
+
+.logo-text {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 3px;
+  color: var(--text);
+  line-height: 1;
+}
+
+.logo-sub {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-top: 2px;
+}
+
+.header-divider {
+  width: 1px;
+  height: 28px;
+  background: var(--border2);
+}
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text3);
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--risk-moderate);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.office-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.office-badge:hover { opacity: 0.8; }
+.badge-hume  { border-color: var(--hume-col);  color: var(--hume-col);  background: rgba(0,212,255,0.08); }
+.badge-styne { border-color: var(--styne-col); color: var(--styne-col); background: rgba(255,92,58,0.08); }
+
+.badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ── Body ─────────────────────────────────────── */
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Sidebar ──────────────────────────────────── */
+.sidebar {
+  width: 320px;
+  min-width: 320px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* ── Form Panel ───────────────────────────────── */
+.form-panel {
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.panel-heading {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 2px;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.panel-sub {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 18px;
+}
+
+.field { margin-bottom: 12px; }
+.field:last-child { margin-bottom: 0; }
+
+.field label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 6px;
+}
+
+.field input,
+.field textarea,
+.field select {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 10px 13px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  resize: none;
+  appearance: none;
+}
+
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 3px rgba(0,212,255,0.08);
+}
+
+.field input::placeholder,
+.field textarea::placeholder {
+  color: var(--text3);
+  font-style: italic;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.add-btn {
+  width: 100%;
+  margin-top: 14px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, #C0392B 0%, var(--coral) 100%);
+  color: white;
+  font-family: var(--font-display);
+  font-size: 16px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.add-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.add-btn:hover::after { opacity: 1; }
+.add-btn:hover { transform: translateY(-1px); box-shadow: var(--glow-coral); }
+.add-btn:active { transform: translateY(0); }
+.add-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.spinner {
+  display: none;
+  width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.add-btn.loading .spinner { display: block; }
+.add-btn.loading .btn-label { display: none; }
+
+/* ── Events List ──────────────────────────────── */
+.events-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.events-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.events-title {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+
+.events-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--cyan);
+  background: rgba(0,212,255,0.1);
+  border: 1px solid rgba(0,212,255,0.2);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 2;
+}
+
+.empty-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+.event-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 13px 14px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.event-card:hover {
+  border-color: var(--border2);
+  background: var(--surface3);
+  transform: translateX(2px);
+}
+
+.event-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.event-name {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.event-time {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--risk-critical);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.event-addr {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text3);
+  margin-bottom: 10px;
+}
+
+.dist-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.dist-chip {
+  border-radius: 7px;
+  padding: 5px 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.dist-chip-label {
+  font-size: 9px;
+  opacity: 0.7;
+  margin-bottom: 1px;
+}
+
+.dist-chip-val {
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.dist-chip-risk {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-top: 1px;
+}
+
+.del-btn {
+  position: absolute;
+  top: 10px; right: 10px;
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 13px;
+  opacity: 0;
+  transition: all 0.2s;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.event-card:hover .del-btn { opacity: 1; }
+.del-btn:hover { color: var(--risk-critical); background: rgba(255,45,85,0.1); }
+
+/* ── Action Bar ───────────────────────────────── */
+.action-bar {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.act-btn {
+  padding: 9px 6px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.act-btn:hover {
+  border-color: var(--cyan);
+  color: var(--cyan);
+  background: rgba(0,212,255,0.05);
+}
+
+.act-icon { font-size: 14px; }
+
+/* ── Map ──────────────────────────────────────── */
+.map-wrap {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+/* Override Leaflet popup */
+.leaflet-popup-content-wrapper {
+  background: var(--surface2) !important;
+  border: 1px solid var(--border2) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
+  padding: 0 !important;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  font-family: var(--font-ui) !important;
+}
+
+.leaflet-popup-tip {
+  background: var(--surface2) !important;
+}
+
+.leaflet-popup-close-button {
+  color: var(--text3) !important;
+  font-size: 18px !important;
+  padding: 8px 10px !important;
+}
+
+.leaflet-popup-close-button:hover {
+  color: var(--text) !important;
+}
+
+/* ── Map Overlays ─────────────────────────────── */
+.map-overlay {
+  position: absolute;
+  z-index: 800;
+  pointer-events: none;
+}
+
+.overlay-legend {
+  bottom: 20px;
+  right: 16px;
+  background: rgba(6,8,13,0.92);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  backdrop-filter: blur(12px);
+  pointer-events: auto;
+  min-width: 160px;
+}
+
+.legend-title {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text3);
+  margin-bottom: 10px;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text2);
+}
+
+.legend-row:last-child { margin-bottom: 0; }
+
+.leg-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.legend-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 8px 0;
+}
+
+.overlay-offices {
+  top: 14px;
+  left: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.office-pill {
+  background: rgba(6,8,13,0.92);
+  border: 1.5px solid;
+  border-radius: 9px;
+  padding: 8px 13px;
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.office-pill:hover { transform: translateX(2px); }
+
+.op-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.7;
+  margin-bottom: 2px;
+}
+
+.op-name {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.op-addr {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  opacity: 0.6;
+  margin-top: 1px;
+}
+
+.op-dist-info {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  margin-top: 5px;
+  opacity: 0.8;
+}
+
+/* ── Toast ────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface3);
+  border: 1px solid var(--cyan);
+  border-radius: 100px;
+  padding: 10px 22px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--cyan);
+  z-index: 9999;
+  pointer-events: none;
+  display: none;
+  white-space: nowrap;
+  box-shadow: var(--glow-cyan), var(--shadow);
+}
+
+.toast.show {
+  display: block;
+  animation: toastAnim 2.5s ease forwards;
+}
+
+@keyframes toastAnim {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  12%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  80%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+}
+
+/* ── Popup Styles ─────────────────────────────── */
+.popup-wrap {
+  padding: 16px 18px;
+  min-width: 240px;
+  max-width: 300px;
+}
+
+.popup-title {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.popup-addr {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text3);
+  margin-bottom: 12px;
+}
+
+.popup-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 10px 0;
+}
+
+.popup-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.popup-row-label { color: var(--text3); }
+
+.risk-pill {
+  padding: 2px 9px;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.popup-notes {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text2);
+  line-height: 1.7;
+  max-height: 100px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.popup-office-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 2px;
+  margin-bottom: 3px;
+}
+
+/* ── Animations ───────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.event-card {
+  animation: fadeIn 0.25s ease;
+}
+
+/* ── Responsive ───────────────────────────────── */
+@media (max-width: 768px) {
+  .sidebar { width: 100%; min-width: 0; }
+  .body { flex-direction: column; }
+  .map-wrap { height: 60vh; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ── Header ───────────────────────────── -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">
+        <div class="logo-icon">S</div>
+        <div>
+          <div class="logo-text">SECMAP</div>
+          <div class="logo-sub">Dublin Security Intelligence</div>
+        </div>
+      </div>
+      <div class="header-divider"></div>
+      <div class="status-bar">
+        <div class="status-dot"></div>
+        <span id="status-text">SYSTEM OPERATIONAL</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="office-badge badge-hume" onclick="focusOffice('hume')">
+        <div class="badge-dot"></div>
+        A · 5-HUME
+      </div>
+      <div class="office-badge badge-styne" onclick="focusOffice('styne')">
+        <div class="badge-dot"></div>
+        B · STYNE HOUSE
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Body ─────────────────────────────── -->
+  <div class="body">
+
+    <!-- ── Sidebar ───────────────────────── -->
+    <aside class="sidebar">
+
+      <div class="form-panel">
+        <div class="panel-heading">ADD EVENT</div>
+        <div class="panel-sub">Protest · Incident · Alert</div>
+
+        <div class="field">
+          <label>Event Name</label>
+          <input type="text" id="inp-name" placeholder="e.g. Flotilla Solidarity Protest" autocomplete="off"/>
+        </div>
+
+        <div class="field">
+          <label>Address or Location</label>
+          <input type="text" id="inp-addr" placeholder="e.g. Kildare Street, Dublin 2" autocomplete="off"
+            onkeydown="if(event.key==='Enter') addEvent()"/>
+        </div>
+
+        <div class="field-row">
+          <div class="field" style="margin-bottom:0;">
+            <label>Time</label>
+            <input type="text" id="inp-time" placeholder="e.g. 17:00"/>
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label>Risk Radius</label>
+            <select id="inp-radius">
+              <option value="900">900m — Large</option>
+              <option value="600">600m — Medium</option>
+              <option value="400" selected>400m — Standard</option>
+              <option value="200">200m — Small</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Intelligence Notes</label>
+          <textarea id="inp-notes" rows="3"
+            placeholder="Paste Facebook post, news article, organiser, cause, Garda info, source..."></textarea>
+        </div>
+
+        <button class="add-btn" id="add-btn" onclick="addEvent()">
+          <span class="btn-label">+ PLOT ON MAP</span>
+          <span class="spinner"></span>
+        </button>
+      </div>
+
+      <div class="events-panel">
+        <div class="events-header">
+          <div class="events-title">Active Events</div>
+          <div class="events-count" id="ev-count">0</div>
+        </div>
+        <div id="ev-list">
+          <div class="empty-state">
+            <div class="empty-icon">⬡</div>
+            No events logged.<br/>
+            Add a protest or incident<br/>
+            to begin risk assessment.
+          </div>
+        </div>
+      </div>
+
+      <div class="action-bar">
+        <button class="act-btn" onclick="copyBriefing()">
+          <span class="act-icon">📋</span>
+          Copy Brief
+        </button>
+        <button class="act-btn" onclick="takeScreenshot()">
+          <span class="act-icon">📸</span>
+          Screenshot
+        </button>
+        <button class="act-btn" onclick="clearAll()">
+          <span class="act-icon">⟳</span>
+          Clear All
+        </button>
+      </div>
+
+    </aside>
+
+    <!-- ── Map ─────────────────────────── -->
+    <div class="map-wrap">
+      <div id="map"></div>
+
+      <!-- Offices overlay -->
+      <div class="map-overlay overlay-offices" id="offices-overlay">
+        <div class="office-pill" style="border-color:var(--hume-col);color:var(--hume-col);"
+             onclick="focusOffice('hume')">
+          <div class="op-badge">Office A</div>
+          <div class="op-name">5-HUME</div>
+          <div class="op-addr">3–8 Hume St, D02 C624</div>
+          <div class="op-dist-info" id="hume-dist-info"></div>
+        </div>
+        <div class="office-pill" style="border-color:var(--styne-col);color:var(--styne-col);"
+             onclick="focusOffice('styne')">
+          <div class="op-badge">Office B</div>
+          <div class="op-name">STYNE HOUSE</div>
+          <div class="op-addr">Hatch St Upper, D02 DY27</div>
+          <div class="op-dist-info" id="styne-dist-info"></div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="map-overlay overlay-legend">
+        <div class="legend-title">Disruption Zones</div>
+        <div class="legend-row">
+          <span class="leg-swatch" style="background:#FF2D55;"></span>Critical — 0–150m
+        </div>
+        <div class="legend-row">
+          <span class="leg-swatch" style="background:#FF9500;"></span>High — 150–350m
+        </div>
+        <div class="legend-row">
+          <span class="leg-swatch" style="background:#34C759;"></span>Moderate — 350–600m
+        </div>
+        <div class="legend-row">
+          <span class="leg-swatch" style="background:#007AFF;"></span>Low — 600–900m
+        </div>
+        <div class="legend-divider"></div>
+        <div class="legend-row">
+          <span class="leg-swatch" style="background:var(--hume-col);border-radius:50%;"></span>5-Hume (A)
+        </div>
+        <div class="legend-row">
+          <span class="leg-swatch" style="background:var(--styne-col);border-radius:50%;"></span>Styne House (B)
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Fixed Offices ──────────────────────────────────────────────────────────
+const OFFICES = [
+  {
+    id: 'hume',
+    label: '5-Hume',
+    full: '3–8 Hume Street',
+    addr: '3–8 Hume St, Dublin 2, D02 C624',
+    latlng: [53.33475, -6.25590],
+    color: '#00D4FF',
+    letter: 'A',
+    distInfoEl: 'hume-dist-info'
+  },
+  {
+    id: 'styne',
+    label: 'Styne House',
+    full: 'Hatch Street Upper',
+    addr: 'Hatch St Upper, Saint Kevin\'s, D02 DY27',
+    latlng: [53.33170, -6.25750],
+    color: '#FF5C3A',
+    letter: 'B',
+    distInfoEl: 'styne-dist-info'
+  }
+];
+
+// ── Map Init ───────────────────────────────────────────────────────────────
+const map = L.map('map', {
+  center: [53.3335, -6.2565],
+  zoom: 15,
+  zoomControl: true,
+  attributionControl: true
+});
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors',
+  maxZoom: 19
+}).addTo(map);
+
+// ── State ──────────────────────────────────────────────────────────────────
+let events = [];
+let mapLayers = [];
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function haversine(a, b) {
+  const R = 6371000;
+  const dLat = (b[0] - a[0]) * Math.PI / 180;
+  const dLon = (b[1] - a[1]) * Math.PI / 180;
+  const s = Math.sin(dLat/2)**2 +
+            Math.cos(a[0]*Math.PI/180) * Math.cos(b[0]*Math.PI/180) * Math.sin(dLon/2)**2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s)));
+}
+
+function getRisk(d) {
+  if (d < 150) return {
+    label: 'CRITICAL', col: '#FF2D55', bg: 'rgba(255,45,85,0.15)',
+    ring: '#FF2D55', fill: 'rgba(255,45,85,0.30)', w: 4
+  };
+  if (d < 350) return {
+    label: 'HIGH', col: '#FF9500', bg: 'rgba(255,149,0,0.15)',
+    ring: '#FF9500', fill: 'rgba(255,149,0,0.24)', w: 3.5
+  };
+  if (d < 600) return {
+    label: 'MODERATE', col: '#34C759', bg: 'rgba(52,199,89,0.13)',
+    ring: '#34C759', fill: 'rgba(52,199,89,0.18)', w: 3
+  };
+  return {
+    label: 'LOW', col: '#007AFF', bg: 'rgba(0,122,255,0.13)',
+    ring: '#007AFF', fill: 'rgba(0,122,255,0.14)', w: 2.5
+  };
+}
+
+function addLayer(layer) {
+  mapLayers.push(layer);
+  return layer.addTo(map);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show';
+  setTimeout(() => t.className = 'toast', 2700);
+}
+
+function updateStatus(text) {
+  document.getElementById('status-text').textContent = text;
+}
+
+// ── Geocode ────────────────────────────────────────────────────────────────
+async function geocode(addr) {
+  const query = addr.toLowerCase().includes('dublin') ? addr : addr + ', Dublin, Ireland';
+  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&countrycodes=ie`;
+  const r = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'SECMAP/1.0' } });
+  const d = await r.json();
+  if (!d || !d.length) throw new Error('Address not found');
+  return [parseFloat(d[0].lat), parseFloat(d[0].lon)];
+}
+
+// ── Render Map ─────────────────────────────────────────────────────────────
+function renderMap() {
+  mapLayers.forEach(l => map.removeLayer(l));
+  mapLayers = [];
+
+  // ── Office Markers ────────────────────────────────────────────────────
+  OFFICES.forEach(off => {
+    // Build distance rows for popup
+    const distRows = events.map(ev => {
+      const d = haversine(off.latlng, ev.latlng);
+      const r = getRisk(d);
+      return `
+        <div class="popup-row">
+          <span class="popup-row-label">${ev.name}</span>
+          <span style="display:flex;align-items:center;gap:6px;">
+            <span style="color:${r.col};font-weight:600;">${d}m</span>
+            <span class="risk-pill" style="background:${r.bg};color:${r.col};">${r.label}</span>
+          </span>
+        </div>`;
+    }).join('');
+
+    const popupHtml = `
+      <div class="popup-wrap">
+        <div class="popup-office-title" style="color:${off.color};">${off.label}</div>
+        <div class="popup-addr">${off.addr}</div>
+        ${events.length ? `
+          <div class="popup-divider"></div>
+          <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">Distance to events</div>
+          ${distRows}
+        ` : `<div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);">No events plotted yet.</div>`}
+      </div>`;
+
+    const icon = L.divIcon({
+      html: `
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <div style="
+            width:44px;height:44px;border-radius:50%;
+            background:rgba(${off.color === '#00D4FF' ? '0,212,255' : '255,92,58'},0.12);
+            border:3px solid ${off.color};
+            color:${off.color};
+            font-family:'Bebas Neue',sans-serif;font-size:20px;
+            display:flex;align-items:center;justify-content:center;
+            box-shadow:0 0 24px rgba(${off.color === '#00D4FF' ? '0,212,255' : '255,92,58'},0.4);
+          ">${off.letter}</div>
+          <div style="
+            background:rgba(6,8,13,0.95);
+            border:2px solid ${off.color};
+            border-radius:9px;
+            padding:6px 12px;
+            text-align:center;
+            min-width:120px;
+            box-shadow:0 4px 16px rgba(0,0,0,0.6);
+          ">
+            <div style="font-family:'Instrument Sans',sans-serif;font-size:12px;font-weight:700;color:${off.color};">${off.label}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,0.4);margin-top:1px;">${off.full}</div>
+          </div>
+        </div>`,
+      iconAnchor: [22, 44],
+      className: ''
+    });
+
+    addLayer(L.marker(off.latlng, { icon, zIndexOffset: 2000 })
+      .bindPopup(popupHtml, { maxWidth: 320, className: 'secmap-popup' }));
+
+    // Update overlay pill distances
+    const el = document.getElementById(off.distInfoEl);
+    if (el && events.length) {
+      const nearest = Math.min(...events.map(ev => haversine(off.latlng, ev.latlng)));
+      const r = getRisk(nearest);
+      el.innerHTML = `Nearest event: <span style="color:${r.col};font-weight:600;">${nearest}m · ${r.label}</span>`;
+    } else if (el) {
+      el.innerHTML = '';
+    }
+  });
+
+  // ── Event Markers ──────────────────────────────────────────────────────
+  events.forEach(ev => {
+    const radius = parseInt(ev.radius);
+
+    // Heatmap rings — outermost first
+    const ringDefs = [
+      { r: radius,               col: '#007AFF', fill: 'rgba(0,122,255,0.10)',   w: 2.5 },
+      { r: Math.min(radius, 600), col: '#34C759', fill: 'rgba(52,199,89,0.14)',   w: 3 },
+      { r: Math.min(radius, 350), col: '#FF9500', fill: 'rgba(255,149,0,0.20)',   w: 3.5 },
+      { r: Math.min(radius, 150), col: '#FF2D55', fill: 'rgba(255,45,85,0.28)',   w: 4 },
+    ];
+
+    const uniqueRings = [];
+    const seen = new Set();
+    ringDefs.forEach(rd => {
+      if (!seen.has(rd.r)) { seen.add(rd.r); uniqueRings.push(rd); }
+    });
+
+    uniqueRings.forEach(z => {
+      addLayer(L.circle(ev.latlng, {
+        radius: z.r,
+        color: z.col,
+        fillColor: z.fill,
+        fillOpacity: 1,
+        weight: z.w,
+        opacity: 0.9
+      }));
+    });
+
+    // Lines + distance labels to each office
+    OFFICES.forEach(off => {
+      const d = haversine(off.latlng, ev.latlng);
+      const risk = getRisk(d);
+      const walkMin = Math.round(d / 80);
+
+      addLayer(L.polyline([off.latlng, ev.latlng], {
+        color: off.color,
+        weight: 1.5,
+        dashArray: '6,5',
+        opacity: 0.7
+      }));
+
+      const mid = [
+        (off.latlng[0] + ev.latlng[0]) / 2,
+        (off.latlng[1] + ev.latlng[1]) / 2
+      ];
+
+      const distIcon = L.divIcon({
+        html: `<div style="
+          background:rgba(6,8,13,0.94);
+          color:${risk.col};
+          font-family:'JetBrains Mono',monospace;
+          font-size:9px;
+          font-weight:600;
+          padding:3px 10px;
+          border-radius:100px;
+          border:1px solid ${risk.ring};
+          white-space:nowrap;
+          box-shadow:0 2px 8px rgba(0,0,0,0.5);
+        ">${off.letter}: ${d}m · ${walkMin}min · ${risk.label}</div>`,
+        iconAnchor: [50, 10],
+        className: ''
+      });
+
+      addLayer(L.marker(mid, { icon: distIcon }));
+    });
+
+    // Event pin popup
+    const dA = haversine(OFFICES[0].latlng, ev.latlng);
+    const dB = haversine(OFFICES[1].latlng, ev.latlng);
+    const rA = getRisk(dA), rB = getRisk(dB);
+
+    const notesHtml = ev.notes
+      ? `<div class="popup-divider"></div>
+         <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;">Intelligence Notes</div>
+         <div class="popup-notes">${ev.notes}</div>`
+      : '';
+
+    const popupHtml = `
+      <div class="popup-wrap">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span style="color:#FF2D55;font-size:16px;">⚠</span>
+          <div class="popup-title">${ev.name}</div>
+        </div>
+        <div class="popup-addr">${ev.addr}</div>
+        ${ev.time ? `<div style="font-family:var(--font-mono);font-size:10px;color:#FF2D55;font-weight:600;margin-bottom:10px;">⏱ ${ev.time}</div>` : ''}
+        <div class="popup-divider"></div>
+        <div style="font-family:var(--font-mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">Office Risk Assessment</div>
+        <div class="popup-row">
+          <span class="popup-row-label" style="color:#00D4FF;">A · 5-Hume</span>
+          <span style="display:flex;align-items:center;gap:6px;">
+            <span style="color:${rA.col};font-weight:600;">${dA}m · ~${Math.round(dA/80)}min</span>
+            <span class="risk-pill" style="background:${rA.bg};color:${rA.col};">${rA.label}</span>
+          </span>
+        </div>
+        <div class="popup-row">
+          <span class="popup-row-label" style="color:#FF5C3A;">B · Styne House</span>
+          <span style="display:flex;align-items:center;gap:6px;">
+            <span style="color:${rB.col};font-weight:600;">${dB}m · ~${Math.round(dB/80)}min</span>
+            <span class="risk-pill" style="background:${rB.bg};color:${rB.col};">${rB.label}</span>
+          </span>
+        </div>
+        <div class="popup-row">
+          <span class="popup-row-label">Risk radius</span>
+          <span style="color:var(--text2);font-weight:600;">${ev.radius}m</span>
+        </div>
+        ${notesHtml}
+      </div>`;
+
+    const evIcon = L.divIcon({
+      html: `
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <div style="
+            width:44px;height:44px;border-radius:50%;
+            background:rgba(255,45,85,0.15);
+            border:3px solid #FF2D55;
+            color:#FF2D55;
+            font-size:18px;font-weight:700;
+            display:flex;align-items:center;justify-content:center;
+            box-shadow:0 0 24px rgba(255,45,85,0.5);
+            animation:pinPulse 2s infinite;
+          ">⚠</div>
+          <div style="
+            background:rgba(6,8,13,0.96);
+            border:2px solid #FF2D55;
+            border-radius:9px;
+            padding:6px 12px;
+            text-align:center;
+            min-width:130px;
+            max-width:180px;
+            box-shadow:0 4px 16px rgba(0,0,0,0.6);
+          ">
+            <div style="
+              font-family:'Instrument Sans',sans-serif;
+              font-size:11px;font-weight:700;color:#FF6B6B;
+              white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+            ">${ev.name}</div>
+            ${ev.time ? `<div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#FF2D55;margin-top:2px;font-weight:700;">⏱ ${ev.time}</div>` : ''}
+          </div>
+        </div>`,
+      iconAnchor: [22, 44],
+      className: ''
+    });
+
+    addLayer(L.marker(ev.latlng, { icon: evIcon, zIndexOffset: 1500 })
+      .bindPopup(popupHtml, { maxWidth: 320, className: 'secmap-popup' }));
+  });
+}
+
+// ── Add Event ──────────────────────────────────────────────────────────────
+async function addEvent() {
+  const name   = document.getElementById('inp-name').value.trim();
+  const addr   = document.getElementById('inp-addr').value.trim();
+  if (!addr) { showToast('⚠ Please enter an address'); return; }
+
+  const btn = document.getElementById('add-btn');
+  btn.classList.add('loading');
+  btn.disabled = true;
+  updateStatus('GEOCODING ADDRESS...');
+
+  try {
+    const latlng = await geocode(addr);
+    const ev = {
+      id:     Date.now(),
+      name:   name || addr,
+      addr,
+      latlng,
+      time:   document.getElementById('inp-time').value.trim(),
+      radius: document.getElementById('inp-radius').value,
+      notes:  document.getElementById('inp-notes').value.trim()
+    };
+
+    events.push(ev);
+    renderMap();
+    renderList();
+
+    // Fit bounds to show all
+    const allPoints = [...OFFICES.map(o => o.latlng), latlng];
+    map.fitBounds([
+      [Math.min(...allPoints.map(p=>p[0]))-0.003, Math.min(...allPoints.map(p=>p[1]))-0.004],
+      [Math.max(...allPoints.map(p=>p[0]))+0.003, Math.max(...allPoints.map(p=>p[1]))+0.004]
+    ], { animate: true });
+
+    // Clear form
+    ['inp-name','inp-addr','inp-time','inp-notes'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+
+    updateStatus(`${events.length} EVENT${events.length>1?'S':''} ACTIVE`);
+    showToast(`✓ ${ev.name} plotted`);
+
+  } catch(e) {
+    showToast('⚠ Address not found — try adding Dublin or a landmark');
+    updateStatus('GEOCODING FAILED — TRY AGAIN');
+  }
+
+  btn.classList.remove('loading');
+  btn.disabled = false;
+}
+
+// ── Remove Event ───────────────────────────────────────────────────────────
+function removeEvent(id) {
+  events = events.filter(e => e.id !== id);
+  renderMap();
+  renderList();
+  const count = events.length;
+  updateStatus(count ? `${count} EVENT${count>1?'S':''} ACTIVE` : 'SYSTEM OPERATIONAL');
+  showToast('Event removed');
+}
+
+// ── Render Event List ──────────────────────────────────────────────────────
+function renderList() {
+  document.getElementById('ev-count').textContent = events.length;
+  const list = document.getElementById('ev-list');
+
+  if (!events.length) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">⬡</div>
+        No events logged.<br/>
+        Add a protest or incident<br/>
+        to begin risk assessment.
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = events.map(ev => {
+    const dA = haversine(OFFICES[0].latlng, ev.latlng);
+    const dB = haversine(OFFICES[1].latlng, ev.latlng);
+    const rA = getRisk(dA), rB = getRisk(dB);
+    return `
+      <div class="event-card" onclick="focusEvent(${ev.id})">
+        <button class="del-btn" onclick="event.stopPropagation();removeEvent(${ev.id})">✕</button>
+        <div class="event-card-top">
+          <div class="event-name">${ev.name}</div>
+          ${ev.time ? `<div class="event-time">⏱ ${ev.time}</div>` : ''}
+        </div>
+        <div class="event-addr">${ev.addr}</div>
+        <div class="dist-row">
+          <div class="dist-chip" style="background:${rA.bg};">
+            <div class="dist-chip-label" style="color:${rA.col};">A · 5-Hume</div>
+            <div class="dist-chip-val" style="color:${rA.col};">${dA}m · ${Math.round(dA/80)}min</div>
+            <div class="dist-chip-risk" style="color:${rA.col};">${rA.label}</div>
+          </div>
+          <div class="dist-chip" style="background:${rB.bg};">
+            <div class="dist-chip-label" style="color:${rB.col};">B · Styne House</div>
+            <div class="dist-chip-val" style="color:${rB.col};">${dB}m · ${Math.round(dB/80)}min</div>
+            <div class="dist-chip-risk" style="color:${rB.col};">${rB.label}</div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Focus ──────────────────────────────────────────────────────────────────
+function focusEvent(id) {
+  const ev = events.find(e => e.id === id);
+  if (ev) map.setView(ev.latlng, 16, { animate: true });
+}
+
+function focusOffice(id) {
+  const off = OFFICES.find(o => o.id === id);
+  if (off) map.setView(off.latlng, 16, { animate: true });
+}
+
+// ── Clear ──────────────────────────────────────────────────────────────────
+function clearAll() {
+  if (events.length && !confirm('Clear all events from the map?')) return;
+  events = [];
+  renderMap();
+  renderList();
+  updateStatus('SYSTEM OPERATIONAL');
+  showToast('Map cleared');
+}
+
+// ── Copy Briefing ──────────────────────────────────────────────────────────
+function copyBriefing() {
+  const now = new Date().toLocaleString('en-IE', { dateStyle:'full', timeStyle:'short' });
+  let text = `SECMAP SECURITY BRIEFING\n`;
+  text += `${'═'.repeat(48)}\n`;
+  text += `Generated: ${now}\n\n`;
+  text += `FIXED OFFICE LOCATIONS\n`;
+  text += `  A · 5-Hume:      3–8 Hume St, Dublin 2, D02 C624\n`;
+  text += `  B · Styne House: Hatch St Upper, Saint Kevin's, D02 DY27\n\n`;
+
+  if (!events.length) {
+    text += `No active events.\n`;
+  } else {
+    text += `ACTIVE EVENTS (${events.length})\n${'─'.repeat(48)}\n`;
+    events.forEach((ev, i) => {
+      text += `\n${i+1}. ${ev.name.toUpperCase()}`;
+      if (ev.time) text += ` — ${ev.time}`;
+      text += `\n   Location: ${ev.addr}\n`;
+      text += `   Risk radius: ${ev.radius}m\n\n`;
+      OFFICES.forEach(off => {
+        const d = haversine(off.latlng, ev.latlng);
+        const r = getRisk(d);
+        text += `   ${off.label.padEnd(12)}: ${String(d+'m').padEnd(6)} (~${Math.round(d/80)} min walk) — ${r.label}\n`;
+      });
+      if (ev.notes) text += `\n   Notes: ${ev.notes.slice(0, 200)}${ev.notes.length > 200 ? '...' : ''}\n`;
+    });
+  }
+
+  text += `\n${'═'.repeat(48)}\n`;
+  text += `RECOMMENDATION: Avoid all protest areas from 30 min before listed times.\n`;
+  text += `Use Merrion St / Leeson St as alternate exit routes from D2.\n`;
+  text += `Generated by SECMAP · Dublin Security Intelligence`;
+
+  navigator.clipboard.writeText(text)
+    .then(() => showToast('✓ Briefing copied to clipboard'))
+    .catch(() => showToast('⚠ Copy failed — try again'));
+}
+
+// ── Screenshot ─────────────────────────────────────────────────────────────
+function takeScreenshot() {
+  showToast('📸 Right-click map → Save image as…');
+}
+
+// ── Pulse animation for event pin ─────────────────────────────────────────
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes pinPulse {
+    0%, 100% { box-shadow: 0 0 24px rgba(255,45,85,0.5); }
+    50%       { box-shadow: 0 0 40px rgba(255,45,85,0.9), 0 0 60px rgba(255,45,85,0.3); }
+  }
+`;
+document.head.appendChild(style);
+
+// ── Init ───────────────────────────────────────────────────────────────────
+renderMap();
+renderList();
+</script>
+</body>
+</html>
